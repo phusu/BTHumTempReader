@@ -14,5 +14,6 @@
         <TextBlock x:Name="statusText" HorizontalAlignment="Left" Margin="58,297,0,0" TextWrapping="Wrap" Text="Status:" VerticalAlignment="Top"/>
         <TextBlock x:Name="tempBox" HorizontalAlignment="Left" Margin="207,171,0,0" TextWrapping="Wrap" Text="Waiting..." VerticalAlignment="Top" FontSize="18"/>
         <TextBlock x:Name="humBox" HorizontalAlignment="Left" Margin="207,228,0,0" TextWrapping="Wrap" Text="Waiting..." VerticalAlignment="Top" FontSize="18"/>
+        <TextBlock x:Name="batteryLabel" HorizontalAlignment="Left" Margin="58,281,0,0" TextWrapping="Wrap" Text="Battery level: Waiting..." VerticalAlignment="Top"/>
     </Grid>
 </Page>

@@ -49,6 +49,10 @@ namespace BTHumTempReader
             }
             */
 #endif
+            // Opt-out of prelaunch
+            if (e.PrelaunchActivated)
+                return;
+
             Frame rootFrame = Window.Current.Content as Frame;
 
             // Do not repeat app initialization when the Window already has content,

@@ -110,6 +110,7 @@ namespace BTHumTempReader
         {
             double temperature = 0.0;
             uint humidity = 0;
+            uint battery = 0;
             
             // Check if there are any manufacturer-specific sections.
             var manufacturerSections = eventArgs.Advertisement.ManufacturerData;
@@ -123,29 +124,36 @@ namespace BTHumTempReader
                     reader.ReadBytes(data);
                 }
 
-                // Parse data: temperature consists of bytes 3 & 4 in the payload, humidity is only byte 6
+                // Make sure we have enough data
+                if (data.Length < 11)
+                    return;
+
+                // Parse data: temperature consists of bytes 3 & 4 in the payload, humidity is only byte 6, battery in byte 11
                 // Parsing and interpreting is pretty experimental, because the payload data is not documented anywhere
                 // However this seems to give correct results
                 byte[] humBytes = { 0, data[5] };
                 byte[] tempBytes = { data[3], data[2] };
+                byte[] batteryBytes = { 0, data[10] };
 
                 if (BitConverter.IsLittleEndian)
                 {
                     Array.Reverse(humBytes);
                     Array.Reverse(tempBytes);
+                    Array.Reverse(batteryBytes);
                 }
 
                 temperature = (BitConverter.ToUInt16(tempBytes, 0)) / 10.0;
                 humidity = BitConverter.ToUInt16(humBytes, 0);
+                battery = BitConverter.ToUInt16(batteryBytes, 0);
             }
 
             // Serialize UI update to the main UI thread
             await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
             {
                 // Display these information on the list
-                //listBox.Items.Add(string.Format("Temperature: {0} \u00B0C, humidity {1}%", temperature, humidity));
                 tempBox.Text = string.Format("{0} \u00B0C", temperature);
                 humBox.Text = string.Format("{0}%", humidity);
+                batteryLabel.Text = string.Format("Battery level: {0}%", battery);
             });
         }
 
