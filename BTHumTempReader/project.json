@@ -1,6 +1,7 @@
 ﻿{
   "dependencies": {
-    "Microsoft.NETCore.UniversalWindowsPlatform": "5.1.0"
+    "AWSSDK.KinesisFirehose": "3.1.2.4",
+    "Microsoft.NETCore.UniversalWindowsPlatform": "5.2.2"
   },
   "frameworks": {
     "uap10.0": {}

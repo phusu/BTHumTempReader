@@ -1,20 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Windows.UI.Xaml;
+using System.Text;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 
 using Windows.Storage.Streams;
 using Windows.Devices.Bluetooth.Advertisement;
+
+using Amazon;
+using Amazon.KinesisFirehose;
+using Amazon.KinesisFirehose.Model;
+using Amazon.Runtime;
+
+using System.Reflection;
 
 // The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 namespace BTHumTempReader
@@ -30,6 +28,12 @@ namespace BTHumTempReader
         // Constant for the manufacturer ID, in this case for the BBW200-A1 sensor
         private const ushort MANUFACTURER_ID = 0x0D;
 
+        // AWS Kinesis Firehose client
+        private IAmazonKinesisFirehose _client;
+
+        // AWS Kinesis Firehose delivery stream name, i.e. where to send the data
+        private const string AWS_DELIVERY_STREAM = "bbw200sensordata";
+
         public MainPage()
         {
             this.InitializeComponent();
@@ -44,8 +48,51 @@ namespace BTHumTempReader
 
             // Add the filter to the watcher to receive advertisements only from this manufacturer
             watcher.AdvertisementFilter.Advertisement.ManufacturerData.Add(manufacturerData);
+
+            // Create and initialize connection to cloud (Amazon Kinesis Firehose)
+            InitializeAWSKinesisFirehose();
         }
 
+        /// <summary>
+        /// Initializes the connection to AWS Kinesis Firehose.
+        /// </summary>
+        private void InitializeAWSKinesisFirehose()
+        {
+            string accessKey = "foo";
+            string secretKey = "bar";
+            string filename = "BTHumTempReader.awskeys.txt"; // Need to add current namespace in front of the real filename
+
+            // Read the needed keys from assembly
+            // Keys reside in a separate .txt file for better security, not added as literals to source code!
+            // As you cannot interact with host filesystem in Windows 10 UWP apps (other than few specific locations),
+            // the file is included in the assembly unit
+            // File format:
+            // 1st line: accesskey
+            // 2nd line: secretkey
+            // Trick from: http://www.c-sharpcorner.com/UploadFile/4088a7/reading-winrt-component-embedded-resource-file-in-javascript/
+            try
+            {
+                using (var stream = typeof(MainPage).GetTypeInfo().Assembly.GetManifestResourceStream(filename))
+                {
+                    using (var reader = new StreamReader(stream))
+                    {
+                        accessKey = reader.ReadLine();
+                        secretKey = reader.ReadLine();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // Notify the user
+                statusText.Text = "Error in loading secret keys for cloud connection: " + e.ToString();
+                return;
+            }
+
+            AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+
+            // Create the Kinesis Firehose Client
+            _client = new AmazonKinesisFirehoseClient(credentials, RegionEndpoint.EUWest1);
+        }
 
         /// <summary>
         /// Invoked when this page is about to be displayed in a Frame.
@@ -89,6 +136,10 @@ namespace BTHumTempReader
             watcher.Stop();
             // Always unregister the handlers to release the resources to prevent leaks.
             watcher.Received -= OnAdvertisementReceived;
+
+            // Dispose the Firehose client
+            if (_client != null)
+                _client.Dispose();
         }
 
         /// <summary>
@@ -147,6 +198,8 @@ namespace BTHumTempReader
                 battery = BitConverter.ToUInt16(batteryBytes, 0);
             }
 
+            bool useCloud = false;
+
             // Serialize UI update to the main UI thread
             await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
             {
@@ -154,7 +207,15 @@ namespace BTHumTempReader
                 tempBox.Text = string.Format("{0} \u00B0C", temperature);
                 humBox.Text = string.Format("{0}%", humidity);
                 batteryLabel.Text = string.Format("Battery level: {0}%", battery);
+
+                useCloud = useCloudCheckBox.IsChecked.Value;
             });
+
+            // Send data to AWS Kinesis Firehose if so desired by the user
+            if (useCloud)
+            {
+                SendMessageToAWSFirehose(temperature, humidity, battery);
+            }
         }
 
         /// <summary>
@@ -169,6 +230,46 @@ namespace BTHumTempReader
             {
                 statusText.Text = string.Format("Status: {0}", eventArgs.Error);
             });
+        }
+
+        /// <summary>
+        /// Sends sensor data to AWS Kinesis Firehose.
+        /// </summary>
+        /// <param name="temp">Temperature value</param>
+        /// <param name="hum">Humidity value</param>
+        /// <param name="bat">Battery level</param>
+        private async void SendMessageToAWSFirehose(double temp, uint hum, uint bat)
+        {
+            // Check that the client is not null (might be if initialization failed)
+            if (_client != null)
+            {
+                PutRecordRequest req = new PutRecordRequest();
+                req.DeliveryStreamName = AWS_DELIVERY_STREAM;
+
+                // Create the message
+                // Message format: ISO timestamp, temperature, humidity, battery
+                String data = String.Format("{0},{1},{2},{3}\n", DateTime.UtcNow.ToString("u"), temp, hum, bat);
+
+                try
+                {
+                    var record = new Record
+                    {
+                        Data = new MemoryStream(UTF8Encoding.UTF8.GetBytes(data))
+                    };
+
+                    req.Record = record;
+
+                    await _client.PutRecordAsync(req);
+                }
+                catch (Exception e)
+                {
+                    // Notify the user
+                    await this.Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                    {
+                        statusText.Text = string.Format("Error sending data to cloud: {0}", e.ToString());
+                    });
+                }
+            }
         }
     }
 }

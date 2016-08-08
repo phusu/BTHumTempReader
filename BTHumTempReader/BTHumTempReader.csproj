@@ -110,6 +110,12 @@
     <None Include="BTHumTempReader_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="azurekeys.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="awskeys.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <Content Include="Properties\Default.rd.xml" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\SplashScreen.scale-200.png" />

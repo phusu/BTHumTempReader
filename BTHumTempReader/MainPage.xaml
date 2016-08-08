@@ -15,5 +15,6 @@
         <TextBlock x:Name="tempBox" HorizontalAlignment="Left" Margin="207,171,0,0" TextWrapping="Wrap" Text="Waiting..." VerticalAlignment="Top" FontSize="18"/>
         <TextBlock x:Name="humBox" HorizontalAlignment="Left" Margin="207,228,0,0" TextWrapping="Wrap" Text="Waiting..." VerticalAlignment="Top" FontSize="18"/>
         <TextBlock x:Name="batteryLabel" HorizontalAlignment="Left" Margin="58,281,0,0" TextWrapping="Wrap" Text="Battery level: Waiting..." VerticalAlignment="Top"/>
+        <CheckBox x:Name="useCloudCheckBox" Content="Send data to cloud" HorizontalAlignment="Left" Margin="58,317,0,0" VerticalAlignment="Top"/>
     </Grid>
 </Page>
